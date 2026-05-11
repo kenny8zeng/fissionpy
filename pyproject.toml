@@ -4,11 +4,33 @@ version = "0.2.0"
 description = "Python 工程目录裂变迁移工具——基于 LibCST 将工程目录中的大文件按模块相关性拆分迁移"
 readme = "README.md"
 requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "kenny8zeng", email = "kenny8zeng@users.noreply.github.com"}
+]
+keywords = ["refactoring", "code-splitting", "libCST", "migration", "python"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "libcst>=1.0",
     "typer[all]>=0.12",
     "ruamel.yaml>=0.18",
 ]
+
+[project.urls]
+Homepage = "https://github.com/kenny8zeng/fissionpy"
+Repository = "https://github.com/kenny8zeng/fissionpy"
+Issues = "https://github.com/kenny8zeng/fissionpy/issues"
+Documentation = "https://github.com/kenny8zeng/fissionpy#readme"
 
 [project.optional-dependencies]
 dev = [

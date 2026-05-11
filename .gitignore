@@ -104,3 +104,6 @@ specs/*/quickstart.md
 specs/*/tasks.md
 specs/*/checklists/
 !specs/*/checklists/requirements.md
+
+session*.md
+
