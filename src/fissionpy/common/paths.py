@@ -5,6 +5,17 @@ from __future__ import annotations
 from pathlib import Path
 
 
+def normalize_path(path: str) -> str:
+    """Normalize path by removing ./ prefix.
+
+    This ensures consistency when storing and querying file paths in the database.
+    Both absolute and relative paths with ./ prefix are normalized.
+    """
+    if path.startswith("./"):
+        return path[2:]
+    return path
+
+
 def find_project_root(start_path: str) -> str | None:
     """Walk up from start_path looking for a .fission/ directory.
 

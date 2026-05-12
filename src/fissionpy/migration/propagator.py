@@ -9,6 +9,7 @@ from fissionpy.analysis.database import (
     get_file_by_path,
     get_files_importing_symbol,
 )
+from fissionpy.common.paths import normalize_path
 
 
 def propagate_import_updates(
@@ -24,10 +25,11 @@ def propagate_import_updates(
     """
     results: dict[str, str] = {}
     for file_path in target_files:
-        source = pathlib.Path(file_path).read_text(encoding="utf-8")
+        normalized = normalize_path(file_path)
+        source = pathlib.Path(normalized).read_text(encoding="utf-8")
         updated = update_imports_in_source(source, replacements, moved_symbols)
         if updated != source:
-            pathlib.Path(file_path).write_text(updated, encoding="utf-8")
+            pathlib.Path(normalized).write_text(updated, encoding="utf-8")
             results[file_path] = "updated"
         else:
             results[file_path] = "unchanged"
@@ -43,11 +45,14 @@ def compute_affected_files(conn, plan: dict) -> list[str]:
     target_file = plan.get("target_file", "")
     project_root = plan.get("project_root", "")
 
-    abs_target = target_file
-    if project_root and not pathlib.Path(target_file).is_absolute():
-        abs_target = str(pathlib.Path(project_root) / target_file)
+    normalized_target = normalize_path(target_file)
+    abs_target = normalized_target
+    if project_root and not pathlib.Path(normalized_target).is_absolute():
+        abs_target = str(pathlib.Path(project_root) / normalized_target)
 
     file_row = get_file_by_path(conn, abs_target)
+    if file_row is None:
+        file_row = get_file_by_path(conn, normalized_target)
     if file_row is None:
         file_row = get_file_by_path(conn, target_file)
     if file_row is None:

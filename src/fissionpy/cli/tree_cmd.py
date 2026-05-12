@@ -11,6 +11,7 @@ from fissionpy.analysis.database import (
     get_file_by_path,
     get_symbols_by_file,
 )
+from fissionpy.common.paths import normalize_path
 
 _MAX_DEPTH = 10
 
@@ -132,8 +133,11 @@ def run_tree(
     """Print dependency tree for symbols in the specified file."""
     conn = get_connection(db)
     try:
-        resolved = str(Path(file).resolve())
-        file_row = get_file_by_path(conn, resolved)
+        normalized = normalize_path(file)
+        file_row = get_file_by_path(conn, normalized)
+        if file_row is None:
+            resolved = str(Path(normalized).resolve())
+            file_row = get_file_by_path(conn, resolved)
         if file_row is None:
             file_row = get_file_by_path(conn, file)
         if file_row is None:

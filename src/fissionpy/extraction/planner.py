@@ -17,15 +17,22 @@ from fissionpy.common.paths import (
     file_path_to_module_path,
     find_project_root,
     module_path_to_python_import,
+    normalize_path,
 )
 
 
 def _resolve_target_file(conn, target_file: str) -> tuple[int, str, str | None]:
     """Resolve target_file to (file_id, absolute_path, project_root).
 
-    Tries absolute path first, then resolves relative to CWD.
+    Tries normalized path first (./ prefix removed), then absolute path.
     """
-    abs_path = str(Path(target_file).resolve())
+    normalized = normalize_path(target_file)
+    file_row = get_file_by_path(conn, normalized)
+    if file_row is not None:
+        project_root = find_project_root(file_row["path"])
+        return file_row["id"], file_row["path"], project_root
+
+    abs_path = str(Path(normalized).resolve())
     file_row = get_file_by_path(conn, abs_path)
     if file_row is not None:
         project_root = find_project_root(abs_path)

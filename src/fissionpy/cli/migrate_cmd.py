@@ -12,7 +12,7 @@ from fissionpy.analysis.database import (
     get_file_by_path,
     get_symbols_by_file,
 )
-from fissionpy.common.paths import file_path_to_module_path
+from fissionpy.common.paths import file_path_to_module_path, normalize_path
 from fissionpy.extraction.planner import validate_plan
 from fissionpy.extraction.progress import get_progress_summary
 from fissionpy.migration.propagator import (
@@ -61,13 +61,16 @@ def run_migrate(
 
         project_root = str(plan.get("project_root", ""))
         target_file = str(plan.get("target_file", ""))
+        normalized_target = normalize_path(target_file)
 
         if project_root:
-            abs_target = project_root + "/" + target_file
+            abs_target = project_root + "/" + normalized_target
         else:
-            abs_target = target_file
+            abs_target = normalized_target
 
         target_row = get_file_by_path(conn, abs_target)
+        if target_row is None:
+            target_row = get_file_by_path(conn, normalized_target)
         if target_row is None:
             target_row = get_file_by_path(conn, target_file)
         if target_row is None:

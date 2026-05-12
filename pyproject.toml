@@ -1,6 +1,6 @@
 [project]
 name = "fissionpy"
-version = "0.2.0"
+version = "0.2.1"
 description = "Python 工程目录裂变迁移工具——基于 LibCST 将工程目录中的大文件按模块相关性拆分迁移"
 readme = "README.md"
 requires-python = ">=3.11"

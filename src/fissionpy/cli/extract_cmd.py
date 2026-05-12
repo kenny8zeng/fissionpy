@@ -12,7 +12,7 @@ from fissionpy.analysis.database import (
     get_file_by_path,
     get_symbols_by_file,
 )
-from fissionpy.common.paths import file_path_to_module_path, find_project_root
+from fissionpy.common.paths import file_path_to_module_path, find_project_root, normalize_path
 from fissionpy.extraction.extractor import (
     ExtractionResult,
     extract_module,
@@ -66,14 +66,17 @@ def run_extract(
         project_root = plan.get("project_root", "")
         target_file = plan.get("target_file", "")
 
+        normalized_target = normalize_path(target_file)
         if project_root:
-            abs_target = str(project_root) + "/" + str(target_file)
+            abs_target = str(project_root) + "/" + normalized_target
         else:
-            abs_target = str(target_file)
+            abs_target = normalized_target
 
         target_row = get_file_by_path(conn, abs_target)
         if target_row is None:
-            target_row = get_file_by_path(conn, str(target_file))
+            target_row = get_file_by_path(conn, normalized_target)
+        if target_row is None:
+            target_row = get_file_by_path(conn, target_file)
         if target_row is None:
             typer.echo(f"目标文件未索引: {target_file}", err=True)
             raise typer.Exit(code=1)

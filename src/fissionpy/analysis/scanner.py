@@ -41,6 +41,17 @@ class ScanResult:
         self.errors = errors or []
 
 
+def _normalize_path(path: Path) -> str:
+    """Normalize path by removing ./ prefix and converting to relative path.
+
+    This ensures consistency when storing and querying file paths in the database.
+    """
+    path_str = str(path)
+    if path_str.startswith("./"):
+        return path_str[2:]
+    return path_str
+
+
 def scan_directory(directory: str, exclude: list[str] | None = None) -> ScanResult:
     """Recursively scan a directory for .py files, skipping excluded directories.
 
@@ -74,7 +85,8 @@ def scan_directory(directory: str, exclude: list[str] | None = None) -> ScanResu
                 files.append(entry)
 
     files.sort()
-    return ScanResult(files=files, skipped_dirs=skipped_dirs, errors=errors)
+    normalized_files = [Path(_normalize_path(f)) for f in files]
+    return ScanResult(files=normalized_files, skipped_dirs=skipped_dirs, errors=errors)
 
 
 def compute_file_hash(file_path: str | Path) -> str:

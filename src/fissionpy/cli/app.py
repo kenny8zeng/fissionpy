@@ -5,6 +5,12 @@ Licensed under the MIT License
 """
 
 import typer
+from importlib.metadata import version
+
+try:
+    __version__ = version("fissionpy")
+except Exception:
+    __version__ = "0.2.1"
 
 app = typer.Typer(
     name="fission",
@@ -90,7 +96,7 @@ def migrate(
 
 def _version(value: bool):
     if value:
-        typer.echo("fission 0.2.0")
+        typer.echo(f"fission {__version__}")
         raise typer.Exit()
 
 

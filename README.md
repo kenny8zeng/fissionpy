@@ -90,26 +90,155 @@ Requires Python 3.11+.
 ## Quick Start
 
 ```bash
-# Step 1: Analyze project
-fission analyze ./my_project/
+# Step 1: Navigate to project root directory
+cd /path/to/my_project/
 
-# Step 2: Browse symbols
+# Step 2: Analyze project (use relative paths from project root)
+fission analyze ./backend/
+
+# Step 3: Browse symbols
 fission show
-fission show --file ./my_project/models.py
+fission show --file ./backend/models.py
 fission show --symbol User
-fission tree --file ./my_project/views.py
+fission tree --file ./backend/views.py
 
-# Step 3: Generate migration plan
-fission plan --target ./my_project/models.py --output plan.yaml
+# Step 4: Generate migration plan
+fission plan --target ./backend/models.py --output ./fission-plan.yaml
 
-# Step 4: Edit plan.yaml (move symbols from retain to modules)
+# Step 5: Edit plan.yaml (move symbols from retain to modules)
 # Edit YAML to assign symbols to target modules
 
-# Step 5: Extract symbols
-fission extract plan.yaml
+# Step 6: Extract symbols
+fission extract ./fission-plan.yaml
 
-# Step 6: Migrate (update project-wide imports)
-fission migrate plan.yaml
+# Step 7: Migrate (update project-wide imports)
+fission migrate ./fission-plan.yaml
+```
+
+### ⚠️ Important: Path Consistency
+
+**All commands must use relative paths from the project root directory.**
+
+#### Why Use Relative Paths
+
+- ✅ **Supports project directory movement**: Can continue and rollback after moving the project
+- ✅ **Version control friendly**: Relative paths work better with Git and other VCS
+- ✅ **Team collaboration**: Different developers may have different project directory locations
+- ✅ **Easy rollback**: Can easily restore to previous state
+
+#### Path Rules
+
+1. **Always execute commands from the project root directory**:
+   ```bash
+   # ✅ Correct: Navigate to project root first
+   cd /path/to/my_project/
+
+   # Verify current directory (should contain .fission/ directory)
+   ls -la .fission/
+
+   # All commands use relative paths from project root
+   fission analyze ./backend/
+   fission plan --target ./backend/models.py
+   fission extract ./fission-plan.yaml
+   fission migrate ./fission-plan.yaml
+   ```
+
+2. **Use `./` prefix to clearly indicate relative paths**:
+   ```bash
+   # ✅ Correct: Use ./ prefix
+   fission analyze ./backend/
+   fission plan --target ./backend/models.py
+
+   # ❌ Incorrect: No ./ prefix (confusing)
+   fission analyze backend/
+   fission plan --target backend/models.py
+   ```
+
+3. **❌ Do NOT use absolute paths**:
+   ```bash
+   # ❌ Incorrect: Using absolute paths
+   fission analyze /home/user/project/backend/
+   fission plan --target /home/user/project/backend/models.py
+
+   # Problem: Cannot continue or rollback after moving project directory
+   ```
+
+#### Common Path Mistakes
+
+**Mistake 1: Executing commands from different directories**
+```bash
+# ❌ Incorrect: Different directories
+cd /home/user/project/
+fission analyze ./backend/
+
+cd /home/user/project/backend/
+fission plan --target models.py  # Path base changed!
+
+cd /home/user/project/
+fission extract ./fission-plan.yaml  # File not found!
+```
+
+**Mistake 2: Using absolute paths**
+```bash
+# ❌ Incorrect: Using absolute paths
+fission analyze /home/user/project/backend/
+fission plan --target /home/user/project/backend/models.py
+
+# Problem: Cannot continue or rollback after moving project
+```
+
+**Mistake 3: Mixing path types**
+```bash
+# ❌ Incorrect: Mixing absolute and relative paths
+fission analyze /home/user/project/backend/
+fission plan --target ./backend/models.py  # Mixed!
+```
+
+#### ✅ Correct Path Usage
+
+**Complete workflow example**:
+```bash
+# 1. Navigate to project root
+cd /path/to/my_project/
+
+# 2. Verify current directory
+echo "Project root: $(pwd)"
+ls -la .fission/
+
+# 3. Analyze (use relative paths)
+fission analyze ./backend/ --verbose
+
+# 4. Generate plan (use relative paths)
+fission plan --target ./backend/models.py \
+  --output ./fission-plan.yaml \
+  --verbose
+
+# 5. Verify plan file
+cat ./fission-plan.yaml | grep project_root
+cat ./fission-plan.yaml | grep target_file
+
+# 6. Extract (use relative paths)
+fission extract ./fission-plan.yaml --verbose
+
+# 7. Migrate (use relative paths)
+fission migrate ./fission-plan.yaml --verbose
+```
+
+**Supports project movement**:
+```bash
+# After moving project directory, can still continue and rollback
+mv /path/to/my_project /new/path/to/my_project/
+
+# Navigate to new project root
+cd /new/path/to/my_project/
+
+# All commands still work (because using relative paths)
+fission extract ./fission-plan.yaml  # ✓ Still works
+fission migrate ./fission-plan.yaml  # ✓ Still works
+
+# Rollback
+mv ./backend/models.py.bak ./backend/models.py  # ✓ Still works
+rm -rf ./_migrated/  # ✓ Still works
 ```
 
 ## Command Reference
@@ -129,6 +258,16 @@ fission analyze <directory> [--db PATH] [--exclude PATTERN] [--force] [--verbose
 | `--force` | Force re-parse all files (ignore incremental cache) |
 | `--verbose` | Detailed output |
 
+**⚠️ Path Note**: Always execute from project root and use relative paths:
+```bash
+# ✅ Correct
+cd /path/to/project/
+fission analyze ./backend/
+
+# ❌ Incorrect
+fission analyze /home/user/project/backend/
+```
+
 ### `fission show`
 
 Browse symbol information — project file list, file symbol list, symbol details and dependencies.
@@ -143,6 +282,15 @@ fission show [--file PATH] [--symbol NAME] [--db PATH] [--verbose]
 | `--symbol` | View symbol details, dependencies, and dependents |
 | `--db` | SQLite database path |
 | `--verbose` | Detailed output |
+
+**⚠️ Path Note**: Use relative paths from project root:
+```bash
+# ✅ Correct
+fission show --file ./backend/models.py
+
+# ❌ Incorrect
+fission show --file /home/user/project/backend/models.py
+```
 
 Without options, displays project file overview.
 
@@ -162,6 +310,15 @@ fission tree --file PATH [--symbol NAME] [--reverse] [--db PATH] [--verbose]
 | `--db` | SQLite database path |
 | `--verbose` | Detailed output |
 
+**⚠️ Path Note**: Use relative paths from project root:
+```bash
+# ✅ Correct
+fission tree --file ./backend/views.py
+
+# ❌ Incorrect
+fission tree --file /home/user/project/backend/views.py
+```
+
 ### `fission plan`
 
 Generates YAML migration plan template for target file. Auto-groups based on symbol dependencies, user-editable.
@@ -177,6 +334,15 @@ fission plan --target PATH [--db PATH] [--output PATH] [--verbose]
 | `--output` | YAML output path, default `./fission-plan.yaml` |
 | `--verbose` | Detailed output |
 
+**⚠️ Path Note**: Use relative paths from project root:
+```bash
+# ✅ Correct
+fission plan --target ./backend/models.py --output ./fission-plan.yaml
+
+# ❌ Incorrect
+fission plan --target /home/user/project/backend/models.py --output /home/user/project/fission-plan.yaml
+```
+
 ### `fission extract`
 
 Executes code extraction — losslessly extracts symbols into new module files per plan.
@@ -190,6 +356,15 @@ fission extract <plan_file> [--db PATH] [--resume] [--verbose]
 | `--db` | SQLite database path |
 | `--resume` | Resume extraction from last interruption |
 | `--verbose` | Detailed output |
+
+**⚠️ Path Note**: Use relative paths from project root:
+```bash
+# ✅ Correct
+fission extract ./fission-plan.yaml
+
+# ❌ Incorrect
+fission extract /home/user/project/fission-plan.yaml
+```
 
 ### `fission migrate`
 
@@ -206,6 +381,15 @@ fission migrate <plan_file> [--db PATH] [--no-reexport] [--resume] [--verbose]
 | `--resume` | Resume migration from last interruption |
 | `--verbose` | Detailed output |
 
+**⚠️ Path Note**: Use relative paths from project root:
+```bash
+# ✅ Correct
+fission migrate ./fission-plan.yaml
+
+# ❌ Incorrect
+fission migrate /home/user/project/fission-plan.yaml
+```
+
 Global option: `--version` displays version number.
 
 ## YAML Plan Format
@@ -214,8 +398,8 @@ The YAML file structure generated by `fission plan`:
 
 ```yaml
 # fission migration plan - edit modules/symbols before running extract
-project_root: /path/to/my_project
-target_file: models.py
+project_root: .
+target_file: backend/models.py
 modules:
 - name: _migrated/user_types
   symbols:
@@ -230,23 +414,133 @@ retain:
 - router
 - app_config
 import_impact:
-- file: /path/to/my_project/views.py
-  old_import: from models import User
+- file: ./backend/views.py
+  old_import: from backend.models import User
   new_import: from _migrated.user_types import User
-- file: /path/to/my_project/services.py
-  old_import: from models import Order
+- file: ./backend/services.py
+  old_import: from backend.models import Order
   new_import: from _migrated.order_types import Order
 ```
 
 | Field | Description |
 |-------|-------------|
-| `project_root` | Absolute path to project root |
-| `target_file` | Relative path to target file |
+| `project_root` | Project root directory (should be `.` for relative paths) |
+| `target_file` | Relative path to target file from project root |
 | `modules` | List of modules to extract, each with `name` and `symbols` |
 | `retain` | Symbols to keep in the original file |
 | `import_impact` | List of import update impacts, showing affected files and old/new import pairs |
 
-Edit by moving symbols from `retain` to target modules in `modules`, or adjust module groupings.
+### How to Edit the Plan
+
+**⚠️ Critical Rules** - Follow these rules to avoid extraction failures:
+
+1. **Move symbols from `retain` to `modules`**:
+   - Initially, all symbols are in `retain`
+   - Move symbols you want to extract into `modules`
+   - Each symbol can only appear in ONE place (either `modules` or `retain`)
+
+2. **Verify symbol names**:
+   ```bash
+   # Check actual symbol names in the target file
+   fission show --file models.py
+   ```
+   - Symbol names must match exactly (case-sensitive)
+   - No typos or extra spaces
+
+3. **Validate module names**:
+   - Each path segment must be a valid Python identifier
+   - Cannot be a Python keyword (e.g., `class`, `def`, `import`)
+   - Cannot start with a number
+   - Use `/` for subdirectories (e.g., `_migrated/models/user`)
+
+4. **Do NOT modify `import_impact`**:
+   - This section is auto-generated and read-only
+   - Modifying it will cause incorrect import updates
+
+### Common Mistakes
+
+**❌ Mistake 1: Duplicate symbols**
+```yaml
+modules:
+- name: models
+  symbols:
+  - User
+- name: entities
+  symbols:
+  - User  # ERROR: User appears twice!
+retain: []
+```
+
+**❌ Mistake 2: Non-existent symbols**
+```yaml
+modules:
+- name: models
+  symbols:
+  - User
+  - NonExistent  # ERROR: Symbol not in target file!
+retain: []
+```
+
+**❌ Mistake 3: Invalid module names**
+```yaml
+modules:
+- name: 123-bad-name  # ERROR: Cannot start with number
+  symbols:
+  - User
+- name: class         # ERROR: Python keyword
+  symbols:
+  - Product
+retain: []
+```
+
+**✅ Correct example**:
+```yaml
+modules:
+- name: _migrated/models
+  symbols:
+  - User
+  - Product
+- name: _migrated/services
+  symbols:
+  - UserService
+  - ProductService
+retain:
+- router
+- app_config
+```
+
+### Editing Workflow
+
+1. **Generate the plan**:
+   ```bash
+   cd /path/to/project/
+   fission plan --target ./backend/models.py --output ./fission-plan.yaml
+   ```
+
+2. **Review the plan**:
+   ```bash
+   cat ./fission-plan.yaml
+   ```
+
+3. **Check symbol names**:
+   ```bash
+   fission show --file ./backend/models.py
+   ```
+
+4. **Edit the plan**:
+   - Move symbols from `retain` to `modules`
+   - Create new modules or adjust existing ones
+   - Ensure no duplicates
+
+5. **Validate YAML syntax**:
+   ```bash
+   python -c "import yaml; yaml.safe_load(open('./fission-plan.yaml'))"
+   ```
+
+6. **Run extraction**:
+   ```bash
+   fission extract ./fission-plan.yaml
+   ```
 
 ## Subdirectory Support
 
@@ -256,6 +550,91 @@ Use `/` in module names to create subdirectory structures:
 - `_migrated/models/user` → Output file `_migrated/models/user.py`, auto-creates all intermediate `__init__.py` files
 
 Each path segment must be a valid Python identifier, not a keyword. The corresponding Python import statement replaces `/` with `.`, e.g., `_migrated.types`.
+
+### Multi-Level Directory Examples
+
+**Example 1: Two-level directory**
+```yaml
+modules:
+- name: _migrated/models
+  symbols:
+  - User
+  - Product
+- name: _migrated/services
+  symbols:
+  - UserService
+  - ProductService
+```
+
+Output structure:
+```
+project/
+├── _migrated/
+│   ├── __init__.py
+│   ├── models.py
+│   └── services.py
+└── backend/
+    └── models.py (original file, reorganized)
+```
+
+**Example 2: Three-level directory**
+```yaml
+modules:
+- name: _migrated/models/user
+  symbols:
+  - User
+  - UserProfile
+- name: _migrated/models/order
+  symbols:
+  - Order
+  - OrderItem
+- name: _migrated/services
+  symbols:
+  - UserService
+  - OrderService
+```
+
+Output structure:
+```
+project/
+├── _migrated/
+│   ├── __init__.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── user.py
+│   │   └── order.py
+│   └── services.py
+└── backend/
+    └── models.py (original file, reorganized)
+```
+
+**Import statements after migration**:
+```python
+# In other files
+from _migrated.models.user import User
+from _migrated.models.order import Order
+from _migrated.services import UserService
+```
+
+### Rules for Subdirectory Module Names
+
+1. **Path segments must be valid Python identifiers**:
+   - ✅ `_migrated/models/user`
+   - ✅ `internal/utils`
+   - ❌ `123-bad-name`
+   - ❌ `my-module` (hyphens not allowed)
+
+2. **Cannot use Python keywords**:
+   - ✅ `models/classifier`
+   - ❌ `models/class` (class is a keyword)
+
+3. **Auto-creation of `__init__.py`**:
+   - All intermediate directories get `__init__.py` automatically
+   - Makes the directory a valid Python package
+
+4. **Import path conversion**:
+   - YAML: `_migrated/models/user`
+   - Python import: `from _migrated.models.user import User`
 
 ## Key Features
 
@@ -270,17 +649,20 @@ Each path segment must be a valid Python identifier, not a keyword. The correspo
 fissionpy successfully processed a 12,775-line `presales_api.py` file (FastAPI router module), splitting it into 7 modules:
 
 ```bash
+# Navigate to project root
+cd /home/user/project/
+
 # Analyze 158 files, 3190 symbols (65 seconds)
 fission analyze ./backend/
 
 # Generate plan, manually edit to distribute 454 symbols into 7 modules
-fission plan --target app/presales_api.py --output plan.yaml
+fission plan --target ./app/presales_api.py --output ./fission-plan.yaml
 
 # Extract 127 symbols into 6 new modules (21 seconds)
-fission extract plan.yaml
+fission extract ./fission-plan.yaml
 
 # Migrate and update imports in 2 dependent files (80 seconds)
-fission migrate plan.yaml
+fission migrate ./fission-plan.yaml
 ```
 
 **Results**:
@@ -304,7 +686,8 @@ fission migrate plan.yaml
 uv pip install -e ".[dev]"
 
 # Run tests (63 tests, <1 second)
-pytest tests/
+cd /path/to/project/
+pytest ./tests/
 ```
 
 ## Tech Stack

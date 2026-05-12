@@ -13,6 +13,7 @@ from fissionpy.analysis.database import (
     get_file_imports_by_file,
     get_symbols_by_file,
 )
+from fissionpy.common.paths import normalize_path
 
 
 def _show_project_overview(conn, verbose: bool) -> None:
@@ -41,8 +42,11 @@ def _show_project_overview(conn, verbose: bool) -> None:
 
 def _show_file_symbols(conn, file_path: str, verbose: bool) -> None:
     """List top-level symbols and imports for a specific file."""
-    resolved = str(Path(file_path).resolve())
-    file_row = get_file_by_path(conn, resolved)
+    normalized = normalize_path(file_path)
+    file_row = get_file_by_path(conn, normalized)
+    if file_row is None:
+        resolved = str(Path(normalized).resolve())
+        file_row = get_file_by_path(conn, resolved)
     if file_row is None:
         file_row = get_file_by_path(conn, file_path)
     if file_row is None:

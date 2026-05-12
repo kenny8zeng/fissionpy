@@ -67,26 +67,155 @@ uv pip install -e .
 ## 快速开始
 
 ```bash
-# Step 1: 分析项目
-fission analyze ./my_project/
+# Step 1: 进入工程根目录
+cd /path/to/my_project/
 
-# Step 2: 浏览符号
+# Step 2: 分析项目（使用相对于工程根目录的路径）
+fission analyze ./backend/
+
+# Step 3: 浏览符号
 fission show
-fission show --file ./my_project/models.py
+fission show --file ./backend/models.py
 fission show --symbol User
-fission tree --file ./my_project/views.py
+fission tree --file ./backend/views.py
 
-# Step 3: 生成迁移计划
-fission plan --target ./my_project/models.py --output plan.yaml
+# Step 4: 生成迁移计划
+fission plan --target ./backend/models.py --output ./fission-plan.yaml
 
-# Step 4: 编辑 plan.yaml（将符号从 retain 移到 modules）
+# Step 5: 编辑 plan.yaml（将符号从 retain 移到 modules）
 # 编辑 YAML，将需要提取的符号分配到目标模块
 
-# Step 5: 提取符号
-fission extract plan.yaml
+# Step 6: 提取符号
+fission extract ./fission-plan.yaml
 
-# Step 6: 迁移（更新全项目 import 引用）
-fission migrate plan.yaml
+# Step 7: 迁移（更新全项目 import 引用）
+fission migrate ./fission-plan.yaml
+```
+
+### ⚠️ 重要：路径一致性
+
+**所有命令必须使用工程根目录为基准的相对路径。**
+
+#### 为什么使用相对路径
+
+- ✅ **支持工程目录移动**：工程目录移动后仍然可以继续和回滚
+- ✅ **支持版本控制**：相对路径更适合 Git 等版本控制系统
+- ✅ **便于团队协作**：不同开发者的工程目录位置不同
+- ✅ **便于回滚**：可以轻松恢复到之前的状态
+
+#### 路径规则
+
+1. **必须从工程根目录执行所有命令**：
+   ```bash
+   # ✅ 正确：先进入工程根目录
+   cd /path/to/my_project/
+
+   # 验证当前目录（应该包含 .fission/ 目录）
+   ls -la .fission/
+
+   # 所有命令都使用相对于工程根目录的路径
+   fission analyze ./backend/
+   fission plan --target ./backend/models.py
+   fission extract ./fission-plan.yaml
+   fission migrate ./fission-plan.yaml
+   ```
+
+2. **使用 `./` 前缀明确表示相对路径**：
+   ```bash
+   # ✅ 正确：使用 ./ 前缀
+   fission analyze ./backend/
+   fission plan --target ./backend/models.py
+
+   # ❌ 错误：不使用 ./ 前缀（容易混淆）
+   fission analyze backend/
+   fission plan --target backend/models.py
+   ```
+
+3. **❌ 不要使用绝对路径**：
+   ```bash
+   # ❌ 错误：使用绝对路径
+   fission analyze /home/user/project/backend/
+   fission plan --target /home/user/project/backend/models.py
+
+   # 问题：工程目录移动后无法继续和回滚
+   ```
+
+#### 常见路径错误
+
+**错误 1：在不同目录执行命令**
+```bash
+# ❌ 错误：在不同目录执行命令
+cd /home/user/project/
+fission analyze ./backend/
+
+cd /home/user/project/backend/
+fission plan --target models.py  # 路径基准变了！
+
+cd /home/user/project/
+fission extract ./fission-plan.yaml  # 找不到文件！
+```
+
+**错误 2：使用绝对路径**
+```bash
+# ❌ 错误：使用绝对路径
+fission analyze /home/user/project/backend/
+fission plan --target /home/user/project/backend/models.py
+
+# 问题：工程目录移动后无法继续和回滚
+```
+
+**错误 3：混合使用路径**
+```bash
+# ❌ 错误：混合使用绝对路径和相对路径
+fission analyze /home/user/project/backend/
+fission plan --target ./backend/models.py  # 混合使用！
+```
+
+#### ✅ 正确的路径使用方式
+
+**完整工作流程示例**：
+```bash
+# 1. 进入工程根目录
+cd /path/to/my_project/
+
+# 2. 验证当前目录
+echo "工程根目录: $(pwd)"
+ls -la .fission/
+
+# 3. 分析（使用相对路径）
+fission analyze ./backend/ --verbose
+
+# 4. 生成计划（使用相对路径）
+fission plan --target ./backend/models.py \
+  --output ./fission-plan.yaml \
+  --verbose
+
+# 5. 验证计划文件
+cat ./fission-plan.yaml | grep project_root
+cat ./fission-plan.yaml | grep target_file
+
+# 6. 提取（使用相对路径）
+fission extract ./fission-plan.yaml --verbose
+
+# 7. 迁移（使用相对路径）
+fission migrate ./fission-plan.yaml --verbose
+```
+
+**支持工程目录移动**：
+```bash
+# 移动工程目录后，仍然可以继续和回滚
+mv /path/to/my_project /new/path/to/my_project/
+
+# 进入新的工程根目录
+cd /new/path/to/my_project/
+
+# 所有命令仍然有效（因为使用相对路径）
+fission extract ./fission-plan.yaml  # ✓ 仍然有效
+fission migrate ./fission-plan.yaml  # ✓ 仍然有效
+
+# 回滚
+mv ./backend/models.py.bak ./backend/models.py  # ✓ 仍然有效
+rm -rf ./_migrated/  # ✓ 仍然有效
 ```
 
 ## 命令参考
@@ -106,6 +235,16 @@ fission analyze <directory> [--db PATH] [--exclude PATTERN] [--force] [--verbose
 | `--force` | 强制重新解析所有文件（忽略增量缓存） |
 | `--verbose` | 详细输出 |
 
+**⚠️ 路径提示**：始终从工程根目录执行并使用相对路径：
+```bash
+# ✅ 正确
+cd /path/to/project/
+fission analyze ./backend/
+
+# ❌ 错误
+fission analyze /home/user/project/backend/
+```
+
 ### `fission show`
 
 浏览符号信息——项目文件列表、文件符号列表、符号详情与依赖关系。
@@ -120,6 +259,15 @@ fission show [--file PATH] [--symbol NAME] [--db PATH] [--verbose]
 | `--symbol` | 查看指定符号的详情、依赖和被依赖关系 |
 | `--db` | SQLite 数据库路径 |
 | `--verbose` | 详细输出 |
+
+**⚠️ 路径提示**：使用相对于工程根目录的路径：
+```bash
+# ✅ 正确
+fission show --file ./backend/models.py
+
+# ❌ 错误
+fission show --file /home/user/project/backend/models.py
+```
 
 不带选项时显示项目文件总览。
 
@@ -139,6 +287,15 @@ fission tree --file PATH [--symbol NAME] [--reverse] [--db PATH] [--verbose]
 | `--db` | SQLite 数据库路径 |
 | `--verbose` | 详细输出 |
 
+**⚠️ 路径提示**：使用相对于工程根目录的路径：
+```bash
+# ✅ 正确
+fission tree --file ./backend/views.py
+
+# ❌ 错误
+fission tree --file /home/user/project/backend/views.py
+```
+
 ### `fission plan`
 
 为目标文件生成 YAML 迁移计划模板。基于符号依赖关系自动分组，用户可编辑调整。
@@ -154,6 +311,15 @@ fission plan --target PATH [--db PATH] [--output PATH] [--verbose]
 | `--output` | YAML 输出路径，默认 `./fission-plan.yaml` |
 | `--verbose` | 详细输出 |
 
+**⚠️ 路径提示**：使用相对于工程根目录的路径：
+```bash
+# ✅ 正确
+fission plan --target ./backend/models.py --output ./fission-plan.yaml
+
+# ❌ 错误
+fission plan --target /home/user/project/backend/models.py --output /home/user/project/fission-plan.yaml
+```
+
 ### `fission extract`
 
 执行代码提取——按计划将符号无损提取到新模块文件。
@@ -167,6 +333,15 @@ fission extract <plan_file> [--db PATH] [--resume] [--verbose]
 | `--db` | SQLite 数据库路径 |
 | `--resume` | 从上次中断处继续提取 |
 | `--verbose` | 详细输出 |
+
+**⚠️ 路径提示**：使用相对于工程根目录的路径：
+```bash
+# ✅ 正确
+fission extract ./fission-plan.yaml
+
+# ❌ 错误
+fission extract /home/user/project/fission-plan.yaml
+```
 
 ### `fission migrate`
 
@@ -183,6 +358,15 @@ fission migrate <plan_file> [--db PATH] [--no-reexport] [--resume] [--verbose]
 | `--resume` | 从上次中断处继续迁移 |
 | `--verbose` | 详细输出 |
 
+**⚠️ 路径提示**：使用相对于工程根目录的路径：
+```bash
+# ✅ 正确
+fission migrate ./fission-plan.yaml
+
+# ❌ 错误
+fission migrate /home/user/project/fission-plan.yaml
+```
+
 全局选项：`--version` 显示版本号。
 
 ## YAML 计划格式
@@ -191,8 +375,8 @@ fission migrate <plan_file> [--db PATH] [--no-reexport] [--resume] [--verbose]
 
 ```yaml
 # fission migration plan - edit modules/symbols before running extract
-project_root: /path/to/my_project
-target_file: models.py
+project_root: .
+target_file: backend/models.py
 modules:
 - name: _migrated/user_types
   symbols:
@@ -207,23 +391,133 @@ retain:
 - router
 - app_config
 import_impact:
-- file: /path/to/my_project/views.py
-  old_import: from models import User
+- file: ./backend/views.py
+  old_import: from backend.models import User
   new_import: from _migrated.user_types import User
-- file: /path/to/my_project/services.py
-  old_import: from models import Order
+- file: ./backend/services.py
+  old_import: from backend.models import Order
   new_import: from _migrated.order_types import Order
 ```
 
 | 字段 | 说明 |
 |------|------|
-| `project_root` | 项目根目录绝对路径 |
-| `target_file` | 目标文件相对路径 |
+| `project_root` | 工程根目录（相对路径应该为 `.`） |
+| `target_file` | 目标文件相对于工程根目录的路径 |
 | `modules` | 要提取的模块列表，每个模块包含 `name` 和 `symbols` |
 | `retain` | 保留在目标文件中的符号 |
 | `import_impact` | import 更新影响列表，显示受影响文件及旧/新 import 对 |
 
-编辑时将需要提取的符号从 `retain` 移到 `modules` 中的目标模块，或调整模块分组。
+### 如何编辑计划
+
+**⚠️ 关键规则** - 遵循以下规则以避免提取失败：
+
+1. **将符号从 `retain` 移到 `modules`**：
+   - 初始状态下，所有符号都在 `retain` 中
+   - 将需要提取的符号移到 `modules` 中
+   - **每个符号只能出现在一个地方**（要么在 `modules`，要么在 `retain`）
+
+2. **验证符号名**：
+   ```bash
+   # 检查目标文件中的实际符号名
+   fission show --file models.py
+   ```
+   - 符号名必须完全匹配（区分大小写）
+   - 不能有拼写错误或多余空格
+
+3. **验证模块名**：
+   - 每个路径段必须是合法 Python 标识符
+   - 不能是 Python 关键字（如 `class`、`def`、`import`）
+   - 不能以数字开头
+   - 使用 `/` 表示子目录（如 `_migrated/models/user`）
+
+4. **不要修改 `import_impact`**：
+   - 此部分是自动生成的，只读
+   - 修改它会导致 import 更新错误
+
+### 常见错误
+
+**❌ 错误 1：符号重复**
+```yaml
+modules:
+- name: models
+  symbols:
+  - User
+- name: entities
+  symbols:
+  - User  # 错误：User 出现了两次！
+retain: []
+```
+
+**❌ 错误 2：符号不存在**
+```yaml
+modules:
+- name: models
+  symbols:
+  - User
+  - NonExistent  # 错误：符号不在目标文件中！
+retain: []
+```
+
+**❌ 错误 3：模块名不合法**
+```yaml
+modules:
+- name: 123-bad-name  # 错误：不能以数字开头
+  symbols:
+  - User
+- name: class         # 错误：Python 关键字
+  symbols:
+  - Product
+retain: []
+```
+
+**✅ 正确示例**：
+```yaml
+modules:
+- name: _migrated/models
+  symbols:
+  - User
+  - Product
+- name: _migrated/services
+  symbols:
+  - UserService
+  - ProductService
+retain:
+- router
+- app_config
+```
+
+### 编辑工作流程
+
+1. **生成计划**：
+   ```bash
+   cd /path/to/project/
+   fission plan --target ./backend/models.py --output ./fission-plan.yaml
+   ```
+
+2. **查看计划**：
+   ```bash
+   cat ./fission-plan.yaml
+   ```
+
+3. **检查符号名**：
+   ```bash
+   fission show --file ./backend/models.py
+   ```
+
+4. **编辑计划**：
+   - 将符号从 `retain` 移到 `modules`
+   - 创建新模块或调整现有模块
+   - 确保没有重复符号
+
+5. **验证 YAML 语法**：
+   ```bash
+   python -c "import yaml; yaml.safe_load(open('./fission-plan.yaml'))"
+   ```
+
+6. **执行提取**：
+   ```bash
+   fission extract ./fission-plan.yaml
+   ```
 
 ## 子目录支持
 
@@ -233,6 +527,91 @@ import_impact:
 - `_migrated/models/user` → 输出文件为 `_migrated/models/user.py`，自动补全所有中间目录的 `__init__.py`
 
 模块名每个路径段必须是合法 Python 标识符，不能是关键字。对应的 Python import 语句将 `/` 替换为 `.`，如 `_migrated.types`。
+
+### 多层目录示例
+
+**示例 1：两层目录**
+```yaml
+modules:
+- name: _migrated/models
+  symbols:
+  - User
+  - Product
+- name: _migrated/services
+  symbols:
+  - UserService
+  - ProductService
+```
+
+输出结构：
+```
+project/
+├── _migrated/
+│   ├── __init__.py
+│   ├── models.py
+│   └── services.py
+└── backend/
+    └── models.py (原文件，已重组)
+```
+
+**示例 2：三层目录**
+```yaml
+modules:
+- name: _migrated/models/user
+  symbols:
+  - User
+  - UserProfile
+- name: _migrated/models/order
+  symbols:
+  - Order
+  - OrderItem
+- name: _migrated/services
+  symbols:
+  - UserService
+  - OrderService
+```
+
+输出结构：
+```
+project/
+├── _migrated/
+│   ├── __init__.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── user.py
+│   │   └── order.py
+│   └── services.py
+└── backend/
+    └── models.py (原文件，已重组)
+```
+
+**迁移后的 import 语句**：
+```python
+# 在其他文件中
+from _migrated.models.user import User
+from _migrated.models.order import Order
+from _migrated.services import UserService
+```
+
+### 子目录模块名规则
+
+1. **路径段必须是合法 Python 标识符**：
+   - ✅ `_migrated/models/user`
+   - ✅ `internal/utils`
+   - ❌ `123-bad-name`
+   - ❌ `my-module` (不允许连字符)
+
+2. **不能使用 Python 关键字**：
+   - ✅ `models/classifier`
+   - ❌ `models/class` (class 是关键字)
+
+3. **自动创建 `__init__.py`**：
+   - 所有中间目录都会自动创建 `__init__.py`
+   - 使目录成为合法的 Python 包
+
+4. **import 路径转换**：
+   - YAML: `_migrated/models/user`
+   - Python import: `from _migrated.models.user import User`
 
 ## 核心特性
 
@@ -247,17 +626,20 @@ import_impact:
 fissionpy 成功处理过 12,775 行的 `presales_api.py` 文件（FastAPI 路由模块），将其拆分为 7 个模块：
 
 ```bash
+# 进入工程根目录
+cd /home/user/project/
+
 # 分析 158 个文件，3190 个符号（65 秒）
 fission analyze ./backend/
 
 # 生成计划，手动编辑将 454 个符号分配到 7 个模块
-fission plan --target app/presales_api.py --output plan.yaml
+fission plan --target ./app/presales_api.py --output ./fission-plan.yaml
 
 # 提取 127 个符号到 6 个新模块（21 秒）
-fission extract plan.yaml
+fission extract ./fission-plan.yaml
 
 # 迁移并更新 2 个依赖文件的 import（80 秒）
-fission migrate plan.yaml
+fission migrate ./fission-plan.yaml
 ```
 
 **结果**：
@@ -326,7 +708,8 @@ AI Agent 加载 Skill 后，会按照以下 6 阶段自动执行：
 uv pip install -e ".[dev]"
 
 # 运行测试（63 个测试，<1 秒）
-pytest tests/
+cd /path/to/project/
+pytest ./tests/
 ```
 
 ## 技术栈
