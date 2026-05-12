@@ -332,6 +332,29 @@ def get_all_symbols_across_project(conn: sqlite3.Connection) -> list[dict[str, A
     return [dict(r) for r in rows]
 
 
+def get_all_files(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """Return all non-deleted files with symbol count."""
+    rows = conn.execute(
+        """SELECT f.id, f.path, f.hash, f.status, COUNT(s.id) AS symbol_count
+        FROM files f LEFT JOIN symbols s ON f.id = s.file_id
+        WHERE f.status != 'deleted'
+        GROUP BY f.id ORDER BY f.path"""
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_all_dependencies(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """Return all dependency rows."""
+    rows = conn.execute("SELECT * FROM dependencies").fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_all_file_imports(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """Return all file_imports rows."""
+    rows = conn.execute("SELECT * FROM file_imports").fetchall()
+    return [dict(r) for r in rows]
+
+
 def get_files_importing_symbol(
     conn: sqlite3.Connection,
     symbol_name: str,

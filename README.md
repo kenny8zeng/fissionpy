@@ -56,20 +56,27 @@ fissionpy is designed for refactoring large Python projects, safely and automati
 - **Format Losslessness**: Extracted text matches original character-by-character
 - **Import Reachability**: All import statement target files exist
 
+### 8. Symbol Index Export
+- `fission export`: Export indexed symbols and dependencies to JSON
+- Flat JSON structure with files/symbols/dependencies/imports arrays
+- File filtering with `--file` for targeted export
+- Optional `--include-source` for source code text
+
 ## AI Agent Skill
 
 fissionpy provides a Skill file (`SKILL.md`) specifically designed for AI Agents, enabling AI programming assistants to autonomously complete large Python file splitting and migration workflows.
 
 ### Skill Triggers
 
-When users issue commands like "split this Python file", "refactor large module", or when files exceed 1000 lines, the AI Agent automatically activates the fissionpy Skill and executes the complete 6-phase workflow:
+When users issue commands like "split this Python file", "refactor large module", or when files exceed 1000 lines, the AI Agent automatically activates the fissionpy Skill and executes the complete 7-phase workflow:
 
 1. **Analyze** → `fission analyze` indexes all symbols and dependencies
 2. **Browse** → `fission show` / `fission tree` explores file structure
-3. **Plan** → `fission plan` creates YAML migration plan
-4. **Edit** → Intelligently assigns symbols to modules (user-adjustable)
-5. **Extract** → `fission extract` performs lossless code extraction
-6. **Migrate** → `fission migrate` updates project-wide imports and verifies
+3. **Export** → `fission export` outputs structured JSON for AI decision-making
+4. **Plan** → `fission plan` creates YAML migration plan
+5. **Edit** → Intelligently assigns symbols to modules (user-adjustable)
+6. **Extract** → `fission extract` performs lossless code extraction
+7. **Migrate** → `fission migrate` updates project-wide imports and verifies
 
 ### Skill Capabilities
 
@@ -102,6 +109,9 @@ fission show --file ./backend/models.py
 fission show --symbol User
 fission tree --file ./backend/views.py
 
+# Step 3.5: Export index (optional, useful for AI Agents)
+fission export
+
 # Step 4: Generate migration plan
 fission plan --target ./backend/models.py --output ./fission-plan.yaml
 
@@ -117,128 +127,21 @@ fission migrate ./fission-plan.yaml
 
 ### ⚠️ Important: Path Consistency
 
-**All commands must use relative paths from the project root directory.**
+**Always use relative paths from the project root directory.**
 
-#### Why Use Relative Paths
+**Why**: Supports project movement and version control.
 
-- ✅ **Supports project directory movement**: Can continue and rollback after moving the project
-- ✅ **Version control friendly**: Relative paths work better with Git and other VCS
-- ✅ **Team collaboration**: Different developers may have different project directory locations
-- ✅ **Easy rollback**: Can easily restore to previous state
-
-#### Path Rules
-
-1. **Always execute commands from the project root directory**:
-   ```bash
-   # ✅ Correct: Navigate to project root first
-   cd /path/to/my_project/
-
-   # Verify current directory (should contain .fission/ directory)
-   ls -la .fission/
-
-   # All commands use relative paths from project root
-   fission analyze ./backend/
-   fission plan --target ./backend/models.py
-   fission extract ./fission-plan.yaml
-   fission migrate ./fission-plan.yaml
-   ```
-
-2. **Use `./` prefix to clearly indicate relative paths**:
-   ```bash
-   # ✅ Correct: Use ./ prefix
-   fission analyze ./backend/
-   fission plan --target ./backend/models.py
-
-   # ❌ Incorrect: No ./ prefix (confusing)
-   fission analyze backend/
-   fission plan --target backend/models.py
-   ```
-
-3. **❌ Do NOT use absolute paths**:
-   ```bash
-   # ❌ Incorrect: Using absolute paths
-   fission analyze /home/user/project/backend/
-   fission plan --target /home/user/project/backend/models.py
-
-   # Problem: Cannot continue or rollback after moving project directory
-   ```
-
-#### Common Path Mistakes
-
-**Mistake 1: Executing commands from different directories**
+**Correct** (use `./` prefix):
 ```bash
-# ❌ Incorrect: Different directories
-cd /home/user/project/
+cd /path/to/project/
 fission analyze ./backend/
-
-cd /home/user/project/backend/
-fission plan --target models.py  # Path base changed!
-
-cd /home/user/project/
-fission extract ./fission-plan.yaml  # File not found!
+fission plan --target ./backend/models.py
 ```
 
-**Mistake 2: Using absolute paths**
+**Wrong** (absolute paths):
 ```bash
-# ❌ Incorrect: Using absolute paths
 fission analyze /home/user/project/backend/
 fission plan --target /home/user/project/backend/models.py
-
-# Problem: Cannot continue or rollback after moving project
-```
-
-**Mistake 3: Mixing path types**
-```bash
-# ❌ Incorrect: Mixing absolute and relative paths
-fission analyze /home/user/project/backend/
-fission plan --target ./backend/models.py  # Mixed!
-```
-
-#### ✅ Correct Path Usage
-
-**Complete workflow example**:
-```bash
-# 1. Navigate to project root
-cd /path/to/my_project/
-
-# 2. Verify current directory
-echo "Project root: $(pwd)"
-ls -la .fission/
-
-# 3. Analyze (use relative paths)
-fission analyze ./backend/ --verbose
-
-# 4. Generate plan (use relative paths)
-fission plan --target ./backend/models.py \
-  --output ./fission-plan.yaml \
-  --verbose
-
-# 5. Verify plan file
-cat ./fission-plan.yaml | grep project_root
-cat ./fission-plan.yaml | grep target_file
-
-# 6. Extract (use relative paths)
-fission extract ./fission-plan.yaml --verbose
-
-# 7. Migrate (use relative paths)
-fission migrate ./fission-plan.yaml --verbose
-```
-
-**Supports project movement**:
-```bash
-# After moving project directory, can still continue and rollback
-mv /path/to/my_project /new/path/to/my_project/
-
-# Navigate to new project root
-cd /new/path/to/my_project/
-
-# All commands still work (because using relative paths)
-fission extract ./fission-plan.yaml  # ✓ Still works
-fission migrate ./fission-plan.yaml  # ✓ Still works
-
-# Rollback
-mv ./backend/models.py.bak ./backend/models.py  # ✓ Still works
-rm -rf ./_migrated/  # ✓ Still works
 ```
 
 ## Command Reference
@@ -388,6 +291,37 @@ fission migrate ./fission-plan.yaml
 
 # ❌ Incorrect
 fission migrate /home/user/project/fission-plan.yaml
+```
+
+### `fission export`
+
+Exports indexed symbols and dependencies to JSON file.
+
+```bash
+fission export [--file PATH] [--db PATH] [--output PATH] [--include-source] [--verbose]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--file` | Filter export to specified file's symbols and dependencies |
+| `--db` | SQLite database path, default `./.fission/fission.db` |
+| `--output` | JSON output path, default `./fission-index.json` |
+| `--include-source` | Include symbol source code text in output |
+| `--verbose` | Detailed output |
+
+**⚠️ Path Note**: Use relative paths from project root (same as other commands):
+```bash
+# Export all indexed data
+fission export
+
+# Export specific file
+fission export --file ./backend/models.py
+
+# Include source code
+fission export --include-source
+
+# Custom output path
+fission export --output ./my-index.json
 ```
 
 Global option: `--version` displays version number.

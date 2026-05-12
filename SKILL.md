@@ -11,6 +11,8 @@
 - "重构大型文件"
 - "split this Python file"
 - "refactor large module"
+- "导出符号索引"
+- "export symbol index"
 - 发现文件超过 1000 行需要拆分时主动建议
 
 ## Workflow
@@ -19,265 +21,19 @@
 
 **所有命令必须使用工程根目录为基准的相对路径，否则会导致找不到文件或提取失败。**
 
-#### 为什么使用相对路径
+**原因**：支持工程目录移动和版本控制。
 
-- ✅ **支持工程目录移动**：工程目录移动后仍然可以继续和回滚
-- ✅ **支持版本控制**：相对路径更适合 Git 等版本控制系统
-- ✅ **便于团队协作**：不同开发者的工程目录位置不同
-- ✅ **便于回滚**：可以轻松恢复到之前的状态
-
-#### 路径基准规则
-
-1. **必须从工程根目录执行所有命令**：
-   ```bash
-   # ✅ 正确：进入工程根目录
-   cd /path/to/project/
-
-   # 验证当前目录（应该包含 .fission/ 目录）
-   ls -la .fission/
-
-   # 所有命令都使用相对于工程根目录的路径
-   fission analyze ./backend/
-   fission plan --target ./backend/models.py
-   fission extract ./fission-plan.yaml
-   fission migrate ./fission-plan.yaml
-   ```
-
-2. **使用 `./` 前缀明确表示相对路径**：
-   ```bash
-   # ✅ 正确：使用 ./ 前缀
-   fission analyze ./backend/
-   fission plan --target ./backend/models.py
-
-   # ❌ 错误：不使用 ./ 前缀（容易混淆）
-   fission analyze backend/
-   fission plan --target backend/models.py
-   ```
-
-3. **❌ 不要使用绝对路径**：
-   ```bash
-   # ❌ 错误：使用绝对路径
-   fission analyze /home/user/project/backend/
-   fission plan --target /home/user/project/backend/models.py
-
-   # 问题：工程目录移动后无法继续和回滚
-   ```
-
-#### 路径一致性检查
-
-**方法 1：验证工程根目录**
+**正确**（使用 `./` 前缀）：
 ```bash
-# 进入工程根目录
 cd /path/to/project/
-
-# 验证当前目录
-pwd
-
-# 验证 .fission/ 目录存在
-ls -la .fission/
-
-# 验证目标文件存在（相对于工程根目录）
-ls -la ./backend/models.py
-```
-
-**方法 2：检查生成的计划文件**
-```bash
-# 检查 plan.yaml 中的路径
-cat fission-plan.yaml | grep project_root
-cat fission-plan.yaml | grep target_file
-
-# 验证 project_root 是相对路径还是绝对路径
-# ✅ 正确：project_root 应该是当前目录（.）或相对路径
-# ❌ 错误：project_root 不应该是绝对路径
-```
-
-**方法 3：验证路径一致性**
-```bash
-# 验证所有路径都相对于工程根目录
-echo "工程根目录: $(pwd)"
-echo "目标文件: ./backend/models.py"
-echo "计划文件: ./fission-plan.yaml"
-echo "数据库: ./.fission/fission.db"
-
-# 验证文件存在
-test -f ./backend/models.py && echo "✓ 目标文件存在"
-test -f ./fission-plan.yaml && echo "✓ 计划文件存在"
-test -f ./.fission/fission.db && echo "✓ 数据库存在"
-```
-
-#### 常见路径错误
-
-**错误 1：在不同目录执行命令**
-```bash
-# ❌ 错误：在不同目录执行命令
-cd /home/user/project/
 fission analyze ./backend/
-
-cd /home/user/project/backend/
-fission plan --target models.py  # 路径基准变了！
-
-cd /home/user/project/
-fission extract ./fission-plan.yaml  # 找不到文件！
+fission plan --target ./backend/models.py
 ```
 
-**错误 2：使用绝对路径**
+**错误**（使用绝对路径）：
 ```bash
-# ❌ 错误：使用绝对路径
 fission analyze /home/user/project/backend/
 fission plan --target /home/user/project/backend/models.py
-
-# 问题：工程目录移动后无法继续和回滚
-```
-
-**错误 3：混合使用路径**
-```bash
-# ❌ 错误：混合使用绝对路径和相对路径
-fission analyze /home/user/project/backend/
-fission plan --target ./backend/models.py  # 混合使用！
-```
-
-**错误 4：数据库路径不一致**
-```bash
-# ❌ 错误：使用不同的数据库路径
-fission analyze ./backend/ --db ./.fission/fission.db
-fission plan --target ./backend/models.py --db ./backend/.fission/fission.db  # 不同的数据库！
-```
-
-**错误 5：YAML 计划中的路径不正确**
-```yaml
-# ❌ 错误：project_root 使用绝对路径
-project_root: /home/user/project
-target_file: backend/models.py
-
-# ✅ 正确：project_root 使用相对路径（当前目录）
-project_root: .
-target_file: backend/models.py
-```
-
-#### ✅ 正确的路径使用方式
-
-**完整工作流程示例**：
-```bash
-# 1. 进入工程根目录
-cd /path/to/project/
-
-# 2. 验证当前目录
-echo "工程根目录: $(pwd)"
-ls -la .fission/
-
-# 3. 分析（使用相对路径）
-fission analyze ./backend/ --verbose
-
-# 4. 生成计划（使用相对路径）
-fission plan --target ./backend/models.py \
-  --output ./fission-plan.yaml \
-  --verbose
-
-# 5. 验证计划文件
-cat ./fission-plan.yaml | grep project_root
-cat ./fission-plan.yaml | grep target_file
-
-# 6. 提取（使用相对路径）
-fission extract ./fission-plan.yaml --verbose
-
-# 7. 迁移（使用相对路径）
-fission migrate ./fission-plan.yaml --verbose
-```
-
-**支持工程目录移动**：
-```bash
-# 移动工程目录后，仍然可以继续和回滚
-mv /path/to/project /new/path/to/project/
-
-# 进入新的工程根目录
-cd /new/path/to/project/
-
-# 所有命令仍然有效（因为使用相对路径）
-fission extract ./fission-plan.yaml  # ✓ 仍然有效
-fission migrate ./fission-plan.yaml  # ✓ 仍然有效
-
-# 回滚
-mv ./backend/models.py.bak ./backend/models.py  # ✓ 仍然有效
-rm -rf ./_migrated/  # ✓ 仍然有效
-```
-
-#### 路径验证脚本
-
-**创建验证脚本**：
-```bash
-#!/bin/bash
-# verify_paths.sh - 验证路径一致性
-
-echo "验证路径一致性..."
-echo ""
-
-# 检查当前目录
-if [ ! -d ".fission" ]; then
-  echo "❌ 错误：当前目录不是工程根目录（缺少 .fission/ 目录）"
-  echo "当前目录: $(pwd)"
-  exit 1
-fi
-
-echo "✓ 工程根目录: $(pwd)"
-
-# 检查计划文件
-if [ ! -f "./fission-plan.yaml" ]; then
-  echo "❌ 错误：计划文件不存在（./fission-plan.yaml）"
-  exit 1
-fi
-
-echo "✓ 计划文件: ./fission-plan.yaml"
-
-# 检查数据库
-if [ ! -f "./.fission/fission.db" ]; then
-  echo "❌ 错误：数据库不存在（./.fission/fission.db）"
-  exit 1
-fi
-
-echo "✓ 数据库: ./.fission/fission.db"
-
-# 检查计划文件中的路径
-PROJECT_ROOT=$(grep "^project_root:" ./fission-plan.yaml | awk '{print $2}')
-TARGET_FILE=$(grep "^target_file:" ./fission-plan.yaml | awk '{print $2}')
-
-echo "计划文件中的路径："
-echo "  project_root: $PROJECT_ROOT"
-echo "  target_file: $TARGET_FILE"
-
-# 检查 project_root 是否是相对路径
-if [[ "$PROJECT_ROOT" == /* ]]; then
-  echo "❌ 错误：project_root 是绝对路径，应该是相对路径"
-  exit 1
-fi
-
-echo "✓ project_root 是相对路径"
-
-# 检查目标文件是否存在
-if [ ! -f "./$TARGET_FILE" ]; then
-  echo "❌ 错误：目标文件不存在（./$TARGET_FILE）"
-  exit 1
-fi
-
-echo "✓ 目标文件: ./$TARGET_FILE"
-
-echo ""
-echo "✓ 所有路径验证通过！"
-```
-
-**使用验证脚本**：
-```bash
-# 保存脚本
-cat > verify_paths.sh << 'EOF'
-#!/bin/bash
-# verify_paths.sh - 验证路径一致性
-# （上面的脚本内容）
-EOF
-
-# 添加执行权限
-chmod +x verify_paths.sh
-
-# 运行验证
-./verify_paths.sh
 ```
 
 ### Phase 1: 分析项目
@@ -295,7 +51,7 @@ fission analyze ./backend/ --verbose
 - 建立跨文件 import 映射
 - 索引到 SQLite 数据库（`.fission/fission.db`）
 
-### Phase 2: 浏览符号
+### Phase 2: 浏览符号与导出索引
 
 ```bash
 # 查看目标文件的所有符号
@@ -309,6 +65,9 @@ fission tree --file ./backend/models.py
 
 # 反向依赖（谁依赖了这个符号）
 fission tree --file ./backend/models.py --reverse
+
+# 导出符号索引为 JSON（供 AI Agent 分析使用）
+fission export --output ./fission-index.json
 ```
 
 ### Phase 3: 生成迁移计划
@@ -517,6 +276,109 @@ fission migrate ./fission-plan.yaml --verbose
 - 创建必要的 `__init__.py`
 - 执行三重校验（符号完整性、格式无损、import 可达性）
 
+### Phase 7: 导出索引（可选）
+
+```bash
+# 导出完整索引为 JSON
+fission export --output ./fission-index.json
+
+# 仅导出特定文件的符号
+fission export --file ./backend/models.py --output ./models-index.json
+
+# 导出包含源代码内容
+fission export --include-source --output ./fission-index-with-source.json
+```
+
+这会：
+- 将索引的符号、依赖、import 信息导出为 JSON 格式
+- 供 AI Agent 或外部工具分析使用
+- 支持筛选特定文件或包含源代码内容
+
+#### 命令参考：`fission export`
+
+导出索引数据为 JSON 格式，供 AI Agent 或外部工具分析使用。
+
+```bash
+fission export [--file PATH] [--db PATH] [--output PATH] [--include-source] [--verbose]
+```
+
+| 选项 | 描述 |
+|------|------|
+| `--file` | 筛选特定文件的符号（可选，支持多次使用） |
+| `--db` | SQLite 数据库路径，默认 `./.fission/fission.db` |
+| `--output` | JSON 输出路径，默认 `./fission-index.json` |
+| `--include-source` | 在导出中包含源代码内容 |
+| `--verbose` | 详细输出 |
+
+#### 使用示例
+
+**完整导出**：
+```bash
+fission export --output ./fission-index.json
+```
+
+**筛选特定文件**：
+```bash
+fission export --file ./backend/models.py --file ./backend/views.py \
+  --output ./filtered-index.json
+```
+
+**包含源代码**：
+```bash
+fission export --include-source --output ./fission-index-with-source.json
+```
+
+#### JSON 输出结构
+
+导出的 JSON 包含以下结构：
+
+```json
+{
+  "files": [
+    {
+      "path": "backend/models.py",
+      "hash": "abc123...",
+      "indexed_at": "2026-01-15T10:30:00"
+    }
+  ],
+  "symbols": [
+    {
+      "name": "User",
+      "type": "class",
+      "file": "backend/models.py",
+      "line": 15,
+      "column": 0,
+      "source": "class User(BaseModel):..."  // 仅当 --include-source
+    }
+  ],
+  "dependencies": [
+    {
+      "symbol": "User",
+      "depends_on": ["BaseModel", "datetime"]
+    }
+  ],
+  "imports": [
+    {
+      "file": "backend/views.py",
+      "module": "backend.models",
+      "names": ["User", "Order"]
+    }
+  ]
+}
+```
+
+#### 路径说明
+
+与其他命令一样，`fission export` 使用相对于工程根目录的路径：
+
+```bash
+# 正确：使用相对路径
+fission export --file ./backend/models.py --output ./index.json
+
+# 错误：使用绝对路径
+fission export --file /home/user/project/backend/models.py
+```
+
 ## Best Practices
 
 ### 模块拆分策略
@@ -629,6 +491,13 @@ modules:
   - user_decorator  # 装饰器
 ```
 
+**7. 使用导出索引辅助 AI Agent 决策**
+```bash
+# 正确流程：导出索引辅助决策
+fission export --output ./fission-index.json
+# AI Agent 读取 JSON 获取符号和依赖数据
+```
+
 ## Edge Cases
 
 ### `from X import *` 处理
@@ -642,6 +511,36 @@ modules:
 ### 装饰器和元类
 
 装饰器和元类引用的符号会被正确保留，但需确保依赖顺序正确。
+
+### 导出索引的边界情况
+
+**数据库不存在**：
+```bash
+# 错误：未找到数据库
+Error: Database not found at ./.fission/fission.db
+
+# 解决：先运行分析命令
+fission analyze ./backend/
+```
+
+**空数据库**：
+```bash
+# 错误：数据库为空，没有任何符号
+Warning: No symbols found in database
+
+# 解决：确认分析命令正确执行且文件被索引
+fission analyze ./backend/ --verbose
+```
+
+**文件未被索引**：
+```bash
+# 错误：指定的文件未被索引
+fission export --file ./backend/models.py --output ./index.json
+# Error: File ./backend/models.py not found in index
+
+# 解决：确认文件路径正确且已被分析
+fission show --file ./backend/models.py
+```
 
 ## Troubleshooting
 
@@ -807,7 +706,7 @@ rm -rf ./_internal/
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-org/fissionpy.git
+git clone https://github.com/kenny8zeng/fissionpy.git
 cd fissionpy
 
 # 安装

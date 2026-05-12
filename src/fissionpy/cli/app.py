@@ -10,7 +10,7 @@ from importlib.metadata import version
 try:
     __version__ = version("fissionpy")
 except Exception:
-    __version__ = "0.2.1"
+    __version__ = "0.2.x"
 
 app = typer.Typer(
     name="fission",
@@ -92,6 +92,19 @@ def migrate(
     """完成项目级迁移——更新全项目 import 引用 + 备份重组 + 校验。"""
     from fissionpy.cli.migrate_cmd import run_migrate
     run_migrate(plan_file, db, no_reexport, resume, verbose)
+
+
+@app.command()
+def export(
+    file: str = typer.Option(None, "--file", help="筛选指定文件的符号和依赖"),
+    db: str = typer.Option("./.fission/fission.db", "--db", help="SQLite 数据库路径"),
+    output: str = typer.Option("./fission-index.json", "--output", help="JSON 输出路径"),
+    include_source: bool = typer.Option(False, "--include-source", help="包含符号源代码文本"),
+    verbose: bool = typer.Option(False, "--verbose", help="详细输出"),
+):
+    """将已索引的符号和依赖关系导出为 JSON 文件。"""
+    from fissionpy.cli.export_cmd import run_export
+    run_export(file, db, output, include_source, verbose)
 
 
 def _version(value: bool):
